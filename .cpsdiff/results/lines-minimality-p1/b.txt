@@ -1,0 +1,6 @@
+int area(int w, int h) {
+    return w * h;
+}
+int perimeter(int w, int h) {
+    return 2 * (w + h);
+}

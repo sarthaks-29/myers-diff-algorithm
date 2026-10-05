@@ -1,0 +1,6 @@
+Test: lines-minimality-p1
+Verdict: PASS (pass)
+Problem: none
+Exit code: 0
+Time: 0.45 s (indicative, not the grader)
+Memory: not measured locally

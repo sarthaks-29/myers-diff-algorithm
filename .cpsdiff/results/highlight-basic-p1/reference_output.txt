@@ -1,0 +1,8 @@
+ server:
+-  port = 8000
++  port = 8080
+? 12-13 | 11-12
+   host = localhost
+-  debug = true
++  debug = false
+? 10-13 | 10-14

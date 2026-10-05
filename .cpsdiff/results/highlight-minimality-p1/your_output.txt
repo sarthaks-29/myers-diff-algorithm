@@ -1,0 +1,6 @@
+-log("x", value)
+-return a + total
++log(value, "x")
+? 4-9 | 9-14
++return total + a
+? 7-11 | 12-16

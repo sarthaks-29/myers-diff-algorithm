@@ -1,0 +1,9 @@
+ alpha
+--beta
+ +gamma
++-beta
+ 
+- delta
++ delta
+ --
+ end

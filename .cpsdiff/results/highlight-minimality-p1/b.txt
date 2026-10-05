@@ -1,0 +1,2 @@
+log(value, "x")
+return total + a

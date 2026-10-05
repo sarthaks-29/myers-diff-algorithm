@@ -1,0 +1,6 @@
+Test: highlight-performance-p1
+Verdict: PASS (pass)
+Problem: none
+Exit code: 0
+Time: 0.19 s (indicative, not the grader)
+Memory: not measured locally
