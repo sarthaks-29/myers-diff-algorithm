@@ -57,97 +57,106 @@ def myers_diff(a, b):
         script.append(("keep", i))
 
     return script
-
-
 def _myers_middle(a, b, a_lo, a_hi, b_lo, b_hi):
-    """Diff a[a_lo:a_hi] against b[b_lo:b_hi], returning ops with absolute
-    indices into a and b. Implements the forward O(ND) search recording the
-    V arrays, then backtracks to recover the edit script."""
+    """Minimal edit script for a[a_lo:a_hi] vs b[b_lo:b_hi] in linear space.
+    Returns ops with absolute indices, in order."""
+    out = []
+    _solve(a, b, a_lo, a_hi, b_lo, b_hi, out)
+    return out
+
+
+def _solve(a, b, a_lo, a_hi, b_lo, b_hi, out):
+    # Common prefix.
+    while a_lo < a_hi and b_lo < b_hi and a[a_lo] == b[b_lo]:
+        out.append(("keep", a_lo))
+        a_lo += 1
+        b_lo += 1
+    # Common suffix (emitted after the middle).
+    suf = 0
+    while a_lo < a_hi and b_lo < b_hi and a[a_hi - 1] == b[b_hi - 1]:
+        a_hi -= 1
+        b_hi -= 1
+        suf += 1
+
     n = a_hi - a_lo
     m = b_hi - b_lo
-
-    if n == 0 and m == 0:
-        return []
     if n == 0:
-        return [("insert", b_lo + j) for j in range(m)]
-    if m == 0:
-        return [("delete", a_lo + i) for i in range(n)]
+        for j in range(m):
+            out.append(("insert", b_lo + j))
+    elif m == 0:
+        for i in range(n):
+            out.append(("delete", a_lo + i))
+    else:
+        x, y = _split_point(a, b, a_lo, a_hi, b_lo, b_hi)
+        _solve(a, b, a_lo, a_lo + x, b_lo, b_lo + y, out)
+        _solve(a, b, a_lo + x, a_hi, b_lo + y, b_hi, out)
 
-    max_d = n + m
+    for i in range(suf):
+        out.append(("keep", a_hi + i))
 
-    # V is a dict keyed by diagonal k (k = x - y). Using a dict keeps memory
-    # proportional to the number of diagonals actually visited (O(D)) instead
-    # of O(N+M). For a small edit distance D this is the whole point: the
-    # work and memory become O(D^2), not O(D*(N+M)).
-    v = {1: 0}
 
-    trace = []  # snapshot of only the touched diagonals after each d
-    found_d = -1
+def _split_point(a, b, a_lo, a_hi, b_lo, b_hi):
+    """Run forward and reverse Myers searches until they overlap; return a
+    relative (x, y) point on an optimal path."""
+    n = a_hi - a_lo
+    m = b_hi - b_lo
+    delta = n - m
+    odd = delta & 1
+    max_d = (n + m + 1) // 2
+    off = max_d + 1
+    size = 2 * max_d + 3
+    vf = [-1] * size
+    vb = [-1] * size
+    vf[off + 1] = 0
+    vb[off + 1] = 0
+    k1s = k1e = k2s = k2e = 0
 
     for d in range(max_d + 1):
-        # Record just the active window [-d, d]; copying the whole V on every
-        # d would be O(D*(N+M)) and is the warned-against quadratic blow-up.
-        trace.append(dict(v))
-        for k in range(-d, d + 1, 2):
-            if k == -d or (k != d and v.get(k - 1, -1) < v.get(k + 1, -1)):
-                x = v.get(k + 1, 0)   # move down (insertion)
+        # Forward
+        for k in range(-d + k1s, d + 1 - k1e, 2):
+            if k == -d or (k != d and vf[off + k - 1] < vf[off + k + 1]):
+                x = vf[off + k + 1]
             else:
-                x = v.get(k - 1, 0) + 1   # move right (deletion)
+                x = vf[off + k - 1] + 1
             y = x - k
-            # Follow the diagonal snake of matching elements.
             while x < n and y < m and a[a_lo + x] == b[b_lo + y]:
                 x += 1
                 y += 1
-            v[k] = x
-            if x >= n and y >= m:
-                found_d = d
-                break
-        if found_d != -1:
-            break
-
-    return _backtrack(a_lo, b_lo, n, m, trace, found_d)
-
-
-def _backtrack(a_lo, b_lo, n, m, trace, d):
-    """Walk the recorded V arrays backwards to build the edit script."""
-    ops = []  # collected in reverse order
-    x = n
-    y = m
-    for dd in range(d, 0, -1):
-        v = trace[dd]
-        k = x - y
-        if k == -dd or (k != dd and v.get(k - 1, -1) < v.get(k + 1, -1)):
-            prev_k = k + 1          # came from an insertion
-        else:
-            prev_k = k - 1          # came from a deletion
-        prev_x = v[prev_k]
-        prev_y = prev_x - prev_k
-
-        # Snake (diagonal matches) between (prev move) and (x, y).
-        while x > prev_x and y > prev_y:
-            x -= 1
-            y -= 1
-            ops.append(("keep", a_lo + x))
-
-        if dd > 0:
-            if x == prev_x:
-                # moved down -> insertion of b[prev_y]
-                y -= 1
-                ops.append(("insert", b_lo + y))
+            vf[off + k] = x
+            if x > n:
+                k1e += 2
+            elif y > m:
+                k1s += 2
+            elif odd:
+                kr = off + delta - k
+                if 0 <= kr < size and vb[kr] != -1 and x >= n - vb[kr]:
+                    return x, y
+        # Reverse
+        for k in range(-d + k2s, d + 1 - k2e, 2):
+            if k == -d or (k != d and vb[off + k - 1] < vb[off + k + 1]):
+                x = vb[off + k + 1]
             else:
-                # moved right -> deletion of a[prev_x]
-                x -= 1
-                ops.append(("delete", a_lo + x))
+                x = vb[off + k - 1] + 1
+            y = x - k
+            while x < n and y < m and a[a_hi - 1 - x] == b[b_hi - 1 - y]:
+                x += 1
+                y += 1
+            vb[off + k] = x
+            if x > n:
+                k2e += 2
+            elif y > m:
+                k2s += 2
+            elif not odd:
+                kf = off + delta - k
+                if 0 <= kf < size and vf[kf] != -1 and vf[kf] >= n - x:
+                    return n - x, m - y
 
-    # Remaining initial snake at d == 0.
-    while x > 0 and y > 0:
-        x -= 1
-        y -= 1
-        ops.append(("keep", a_lo + x))
+    # Unreachable for valid input; safe fallback.
+    return 0, 0
 
-    ops.reverse()
-    return ops
 
+  
+     
 
 # ---------------------------------------------------------------------------
 # File reading (raw bytes, split on \n, drop a single trailing empty piece)
