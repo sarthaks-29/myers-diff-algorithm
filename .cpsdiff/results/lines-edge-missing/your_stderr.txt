@@ -1,1 +1,0 @@
-error: cannot read input file: [Errno 2] No such file or directory: 'C:\\Users\\sarth\\myers-diff-algorithm\\.cpsdiff\\results\\lines-edge-missing\\b.txt'

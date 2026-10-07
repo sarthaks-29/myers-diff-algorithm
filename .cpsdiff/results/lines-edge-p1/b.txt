@@ -1,7 +1,0 @@
-alpha
-+gamma
--beta
-
- delta
---
-end
